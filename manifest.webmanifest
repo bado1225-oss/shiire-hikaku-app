@@ -1,0 +1,16 @@
+{
+  "name": "仕入れ比較アプリ",
+  "short_name": "仕入比較",
+  "description": "飲食店の仕入れ価格を比較し、月間・年間の経費削減額を可視化します。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f1e8",
+  "theme_color": "#203a5a",
+  "lang": "ja",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}

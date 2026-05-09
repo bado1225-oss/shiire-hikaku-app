@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="仕入れ比較">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#203a5a">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=1">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192.png?v=1">
+<link rel="manifest" href="manifest.webmanifest?v=1">
+<title>仕入れ比較アプリ</title>
+<link rel="stylesheet" href="src/style.css?v=1">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div class="header-title-wrap">
+        <h1>仕入れ比較</h1>
+        <div class="header-sub" id="header-date"></div>
+      </div>
+      <div class="header-actions">
+        <button class="header-icon-btn" onclick="showTab('settings')" aria-label="設定" title="設定">⚙️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero KPI -->
+  <div class="dashboard">
+    <div class="hero-card">
+      <div class="hero-top">
+        <div>
+          <div class="hero-title">経費削減ダッシュボード</div>
+          <div class="hero-desc">旧仕入先と新仕入先を比較し、月間/年間の削減効果を可視化</div>
+        </div>
+        <div class="hero-stamp" id="hero-stamp">—</div>
+      </div>
+      <div class="kpi-grid" id="dashboard-kpis"></div>
+    </div>
+  </div>
+
+  <!-- Segment Tabs -->
+  <div class="main-segment-tabs">
+    <button class="main-segment-btn active" id="seg-list" onclick="showTab('list')"><span class="seg-icon">📋</span>一覧</button>
+    <button class="main-segment-btn" id="seg-rank" onclick="showTab('rank')"><span class="seg-icon">🏆</span>ランキング</button>
+    <button class="main-segment-btn" id="seg-trial" onclick="showTab('trial')"><span class="seg-icon">🧪</span>試算</button>
+    <button class="main-segment-btn" id="seg-settings" onclick="showTab('settings')"><span class="seg-icon">⚙️</span>設定</button>
+  </div>
+
+  <div class="view-wrap">
+
+    <!-- List View -->
+    <div id="view-list">
+      <div class="filter-toggle-wrap">
+        <button class="filter-toggle-btn" onclick="toggleFilterPanel('list')">検索・絞り込み <span class="arrow">▼</span></button>
+      </div>
+      <div class="filter-panel" id="filter-panel-list">
+        <div class="toolbar-row">
+          <input type="text" id="search-name" class="search-input" placeholder="商品名で検索…" oninput="renderList()">
+          <select id="filter-store" class="toolbar-select" onchange="renderList()">
+            <option value="all">店舗: すべて</option>
+          </select>
+        </div>
+        <div class="toolbar-row">
+          <select id="sort-by" class="toolbar-select" onchange="renderList()">
+            <option value="saving_desc">削減額が多い順</option>
+            <option value="saving_asc">削減額が少ない順</option>
+            <option value="rate_desc">削減率が高い順</option>
+            <option value="name_asc">商品名(あいうえお順)</option>
+            <option value="created_desc">登録が新しい順</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-label">
+        <span>比較リスト</span>
+        <span class="section-pill" id="list-count-pill">0件</span>
+      </div>
+      <div id="list-items" class="item-list"></div>
+      <div class="add-btn-wrap"><button class="add-btn" onclick="openItemModal()">＋ 新しい商品の比較を追加</button></div>
+      <div class="last-updated" id="last-updated-list"></div>
+    </div>
+
+    <!-- Ranking View -->
+    <div id="view-rank" style="display:none">
+      <div class="section-label"><span>店舗別 月間削減額</span></div>
+      <div id="store-summary" class="summary-grid"></div>
+
+      <div class="section-label"><span>削減額ランキング(月間)</span></div>
+      <div id="rank-items" class="rank-list"></div>
+    </div>
+
+    <!-- Trial View -->
+    <div id="view-trial" style="display:none">
+      <div class="section-label">
+        <span>試算（1商品 vs 複数候補）</span>
+        <span class="section-pill" id="trial-count-pill">0件</span>
+      </div>
+      <p class="hint">「この商品をどこから買うのが一番安いか」を試算するモードです。1つの旧仕入先に対して複数の新候補を入れて比較できます。</p>
+      <div class="toolbar-row">
+        <input type="text" id="trial-product" class="search-input" placeholder="試算する商品名（例: ハンドスキッシュEX）">
+        <input type="number" step="0.01" id="trial-qty" class="search-input" placeholder="月間使用量" style="max-width:120px">
+      </div>
+      <div class="toolbar-row">
+        <input type="text" id="trial-old-vendor" class="search-input" placeholder="旧仕入先">
+        <input type="number" step="0.01" id="trial-old-price" class="search-input" placeholder="旧単価" style="max-width:110px">
+        <input type="number" step="0.01" id="trial-old-ship" class="search-input" placeholder="旧送料(0可)" style="max-width:110px">
+        <input type="number" step="0.01" id="trial-old-freq" class="search-input" placeholder="旧月発注回数" style="max-width:130px">
+      </div>
+      <div id="trial-candidates"></div>
+      <div class="add-btn-wrap" style="margin-top:6px">
+        <button class="sub-btn" onclick="addTrialCandidate()">＋ 新候補を追加</button>
+        <button class="add-btn" onclick="runTrial()">試算する</button>
+      </div>
+      <div id="trial-result" class="trial-result"></div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="view-settings" style="display:none">
+      <div class="section-label"><span>マスタ管理</span></div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-label">店舗・用途</div>
+          <div class="chip-list" id="master-stores"></div>
+          <div class="settings-add-row">
+            <input type="text" id="add-store-input" class="search-input" placeholder="例: 神楽坂">
+            <button class="sub-btn" onclick="addMaster('stores')">追加</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">単位</div>
+          <div class="chip-list" id="master-units"></div>
+          <div class="settings-add-row">
+            <input type="text" id="add-unit-input" class="search-input" placeholder="例: 本">
+            <button class="sub-btn" onclick="addMaster('units')">追加</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">仕入先</div>
+          <div class="chip-list" id="master-vendors"></div>
+          <div class="settings-add-row">
+            <input type="text" id="add-vendor-input" class="search-input" placeholder="例: ハピネス">
+            <button class="sub-btn" onclick="addMaster('vendors')">追加</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label"><span>データ管理</span></div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-label">Excelから読み込む</div>
+          <p class="hint">「仕入れ比較シート.xlsx」のような Excel ファイルから商品データを取り込みます。</p>
+          <input type="file" id="import-xlsx" accept=".xlsx,.xls" onchange="importXlsx(event)">
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">バックアップ</div>
+          <p class="hint">アプリのデータをファイルに書き出し／読み込みできます。</p>
+          <div class="settings-btn-row">
+            <button class="sub-btn" onclick="exportJson()">JSONで書き出す</button>
+            <button class="sub-btn" onclick="document.getElementById('import-json').click()">JSONを読み込む</button>
+            <input type="file" id="import-json" accept=".json" style="display:none" onchange="importJson(event)">
+            <button class="sub-btn" onclick="exportCsv()">CSVで書き出す</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">サンプルデータ</div>
+          <p class="hint">空の状態で動作確認したい時に使えます。</p>
+          <button class="sub-btn" onclick="loadSample()">サンプルを読み込む</button>
+        </div>
+        <div class="settings-row danger-row">
+          <div class="settings-label">全削除</div>
+          <p class="hint">すべての商品データとマスタを消します。元に戻せません。</p>
+          <button class="danger-btn" onclick="clearAll()">全データ削除</button>
+        </div>
+      </div>
+
+      <div class="last-updated">v1.0 / データはこの端末のブラウザにのみ保存されます</div>
+    </div>
+  </div>
+
+  <!-- Item Modal -->
+  <div class="modal-overlay" id="item-modal" style="display:none" onclick="if(event.target===this)closeItemModal()">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title" id="item-modal-title">商品の比較を追加</div>
+        <button class="modal-close" onclick="closeItemModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>商品名 <span class="req">必須</span></label>
+          <input type="text" id="f-name" placeholder="例: 天然水 SPARKLING">
+        </div>
+        <div class="form-row">
+          <label>使用店舗・用途</label>
+          <select id="f-store"></select>
+        </div>
+        <div class="form-row two-col">
+          <div>
+            <label>単位</label>
+            <select id="f-unit"></select>
+          </div>
+          <div>
+            <label>月間使用量</label>
+            <input type="number" step="0.01" id="f-qty" placeholder="0">
+          </div>
+        </div>
+
+        <div class="form-section-title">旧仕入先（変更前）</div>
+        <div class="form-row">
+          <label>仕入先名</label>
+          <select id="f-old-vendor"></select>
+        </div>
+        <div class="form-row two-col">
+          <div>
+            <label>仕入単価(円)</label>
+            <input type="number" step="0.01" id="f-old-price" placeholder="0">
+          </div>
+          <div>
+            <label>送料(円/回)</label>
+            <input type="number" step="0.01" id="f-old-ship" placeholder="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <label>月の発注回数</label>
+          <input type="number" step="0.01" id="f-old-freq" placeholder="例: 2">
+        </div>
+
+        <div class="form-section-title alt">新仕入先（変更後）</div>
+        <div class="form-row">
+          <label>仕入先名</label>
+          <select id="f-new-vendor"></select>
+        </div>
+        <div class="form-row two-col">
+          <div>
+            <label>仕入単価(円)</label>
+            <input type="number" step="0.01" id="f-new-price" placeholder="0">
+          </div>
+          <div>
+            <label>送料(円/回)</label>
+            <input type="number" step="0.01" id="f-new-ship" placeholder="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <label>月の発注回数</label>
+          <input type="number" step="0.01" id="f-new-freq" placeholder="例: 1">
+        </div>
+
+        <div class="form-row">
+          <label>メモ（任意）</label>
+          <textarea id="f-memo" rows="2" placeholder="例: アマゾン定期便で送料無料、最低発注額あり等"></textarea>
+        </div>
+
+        <div class="preview-box" id="modal-preview"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="danger-btn" id="btn-delete" onclick="deleteItem()" style="display:none">削除</button>
+        <button class="sub-btn" onclick="closeItemModal()">キャンセル</button>
+        <button class="primary-btn" onclick="saveItem()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+</div>
+
+<script src="src/app.js?v=1"></script>
+</body>
+</html>

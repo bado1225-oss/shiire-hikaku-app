@@ -1,0 +1,5 @@
+.DS_Store
+test.xlsx
+*.log
+node_modules/
+.vscode/
