@@ -1,12 +1,12 @@
-const CACHE = 'shiire-hikaku-v2';
+const CACHE = 'shiire-hikaku-v3';
 const ASSETS = [
   './',
   './index.html',
-  './src/style.css?v=2',
-  './src/app.js?v=2',
-  './manifest.webmanifest?v=2',
-  './icons/icon-192.png?v=2',
-  './icons/icon-512.png?v=2'
+  './src/style.css?v=3',
+  './src/app.js?v=3',
+  './manifest.webmanifest?v=3',
+  './icons/icon-192.png?v=3',
+  './icons/icon-512.png?v=3'
 ];
 self.addEventListener('install', e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS).catch(()=>{})));

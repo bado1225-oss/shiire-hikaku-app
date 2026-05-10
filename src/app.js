@@ -599,12 +599,43 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 }
 
+/* ---------- URL params (shiire-app linkage) ---------- */
+function handleUrlParams(){
+  const p = new URLSearchParams(window.location.search);
+  if(!p.get('name') && !p.get('source')) return false;
+  // Pre-fill modal with old-side from shiire-app
+  showTab('list');
+  setTimeout(()=>{
+    openItemModal();
+    const fields = {
+      'f-name':'name','f-store':'store','f-unit':'unit','f-qty':'qty',
+      'f-old-vendor':'oldVendor','f-old-price':'oldPrice','f-old-ship':'oldShip','f-old-freq':'oldFreq'
+    };
+    Object.entries(fields).forEach(([elId, key])=>{
+      const v = p.get(key); if(v!=null && v!=='') setVal(elId, v);
+    });
+    const note = p.get('source') ? `※ ${p.get('source')} から自動入力（旧側）。新仕入先を入力して保存してください。` : '';
+    if(note){
+      const memo = document.getElementById('f-memo');
+      if(memo && !memo.value) memo.value = note;
+    }
+    updatePreview();
+    // Clean URL so reload doesn't re-trigger
+    if(window.history && window.history.replaceState){
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    toast('shiire-app から旧側を自動入力しました');
+  }, 80);
+  return true;
+}
+
 /* ---------- init ---------- */
 function init(){
   loadState();
   document.getElementById('header-date').textContent = todayStr();
   renderKpis();
   showTab('list');
+  handleUrlParams();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   }
