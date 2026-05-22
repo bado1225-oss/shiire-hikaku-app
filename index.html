@@ -13,10 +13,30 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192.png?v=3">
 <link rel="manifest" href="manifest.webmanifest?v=3">
 <title>仕入れ比較アプリ</title>
-<link rel="stylesheet" href="src/style.css?v=3">
+<link rel="stylesheet" href="src/style.css?v=4">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Firebase（仕入れ管理アプリと同じプロジェクト＝同じデータ基盤で全端末共有） -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
+
+<!-- ログイン画面（仕入れ管理アプリと同じアカウントでログイン＝同じ比較データを全端末で共有） -->
+<div class="auth-overlay" id="authOverlay" style="display:none">
+  <div class="auth-box">
+    <div class="auth-logo">💰 仕入れ比較</div>
+    <div class="auth-desc">仕入れ管理アプリと<b>同じメール・パスワード</b>でログインすると、<br>パソコンとスマホで<b>同じ比較データ</b>が見られます。</div>
+    <label class="auth-lb">メールアドレス</label>
+    <input type="email" id="authEmail" placeholder="your@email.com" autocomplete="username">
+    <label class="auth-lb">パスワード</label>
+    <input type="password" id="authPw" placeholder="パスワード" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="auth-btn" id="authBtn" onclick="doLogin()">ログイン</button>
+    <div class="auth-err" id="authErr"></div>
+    <button class="auth-skip" onclick="skipLogin()">ログインせず、この端末だけで使う</button>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- Header -->
@@ -27,6 +47,7 @@
         <div class="header-sub" id="header-date"></div>
       </div>
       <div class="header-actions">
+        <span class="sync-pill" id="syncPill" onclick="syncPillClick()" title="同期状態">● 未接続</span>
         <button class="header-icon-btn" onclick="showTab('settings')" aria-label="設定" title="設定">⚙️</button>
       </div>
     </div>
@@ -272,6 +293,6 @@
 
 </div>
 
-<script src="src/app.js?v=3"></script>
+<script src="src/app.js?v=4"></script>
 </body>
 </html>

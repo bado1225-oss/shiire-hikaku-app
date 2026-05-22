@@ -17,6 +17,156 @@ let state = {
 let editingId = null;
 let currentTab = 'list';
 
+/* ============================================================
+   Firebase（仕入れ管理アプリ shiire-app と同じプロジェクト）
+   - 同じアカウントでログイン → 比較データを全端末で共有
+   - データ保存先: users/{uid}/hikaku/data（items と masters をまとめて保存）
+   ============================================================ */
+const FB_CFG = {
+  apiKey:"AIzaSyD3SMCMfXy2qxC8EuukG-ueFdA4FzaTLLM",
+  authDomain:"shiire-app.firebaseapp.com",
+  projectId:"shiire-app",
+  storageBucket:"shiire-app.firebasestorage.app",
+  messagingSenderId:"762592354487",
+  appId:"1:762592354487:web:133b761485abed213f6d32"
+};
+let fbAuth = null, fbDb = null, currentUser = null;
+let cloudMode = false;          // true=クラウド共有モード / false=この端末のみ
+let cloudLoaded = false;        // 初回クラウド読込完了フラグ
+let cloudSaveTimer = null;      // 連続保存をまとめるタイマー
+
+function initFirebase(){
+  try{
+    firebase.initializeApp(FB_CFG);
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+    return true;
+  }catch(e){ console.error('firebase init failed', e); return false; }
+}
+
+/* 同期バッジの表示更新 */
+function setSyncPill(stateName){
+  const el = document.getElementById('syncPill');
+  if(!el) return;
+  el.classList.remove('on','err','local');
+  if(stateName==='on'){ el.textContent='● 同期中'; el.classList.add('on'); }
+  else if(stateName==='saving'){ el.textContent='● 保存中…'; el.classList.add('on'); }
+  else if(stateName==='err'){ el.textContent='● 同期エラー'; el.classList.add('err'); }
+  else if(stateName==='local'){ el.textContent='● この端末のみ'; el.classList.add('local'); }
+  else { el.textContent='● 未接続'; }
+}
+
+/* ログイン実行 */
+async function doLogin(){
+  const email = document.getElementById('authEmail').value.trim();
+  const pw = document.getElementById('authPw').value;
+  const errEl = document.getElementById('authErr');
+  const btn = document.getElementById('authBtn');
+  errEl.textContent = '';
+  if(!email || !pw){ errEl.textContent = 'メールアドレスとパスワードを入力してください'; return; }
+  btn.disabled = true; btn.textContent = 'ログイン中…';
+  try{
+    await fbAuth.signInWithEmailAndPassword(email, pw);
+    // 成功時は onAuthStateChanged が後続処理を行う
+  }catch(e){
+    let msg = 'ログインに失敗しました';
+    if(e.code==='auth/invalid-email') msg='メールアドレスの形式が正しくありません';
+    else if(e.code==='auth/user-not-found') msg='このメールアドレスは登録されていません';
+    else if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential') msg='メールアドレスかパスワードが違います';
+    else if(e.code==='auth/too-many-requests') msg='試行回数が多すぎます。少し時間をおいてください';
+    else if(e.code==='auth/network-request-failed') msg='ネット接続を確認してください';
+    errEl.textContent = msg;
+    console.error('login error', e);
+  }finally{
+    btn.disabled = false; btn.textContent = 'ログイン';
+  }
+}
+
+/* ログインせずこの端末だけで使う */
+function skipLogin(){
+  cloudMode = false;
+  localStorage.setItem('hikakuSkipLogin','1');
+  document.getElementById('authOverlay').style.display = 'none';
+  setSyncPill('local');
+}
+
+/* ログアウト */
+async function logout(){
+  if(!confirm('ログアウトしますか？（この端末のローカルデータは残ります）')) return;
+  localStorage.removeItem('hikakuSkipLogin');
+  try{ if(fbAuth) await fbAuth.signOut(); }catch(e){}
+  location.reload();
+}
+
+/* ヘッダー同期バッジのタップ動作 */
+function syncPillClick(){
+  if(currentUser){
+    logout();
+  }else{
+    // 未ログイン or ローカルモード → ログイン画面を出す
+    localStorage.removeItem('hikakuSkipLogin');
+    document.getElementById('authOverlay').style.display = 'flex';
+  }
+}
+
+/* クラウドからデータを読み込む（ログイン直後） */
+async function cloudLoad(){
+  if(!currentUser) return;
+  setSyncPill('on');
+  try{
+    const ref = fbDb.doc(`users/${currentUser.uid}/hikaku/data`);
+    const snap = await ref.get();
+    if(snap.exists){
+      const d = snap.data();
+      if(Array.isArray(d.items)){
+        state.items = d.items;
+        if(d.masters){
+          state.masters = {...structuredClone(DEFAULT_MASTERS), ...d.masters};
+          for(const k of Object.keys(DEFAULT_MASTERS)){
+            if(!Array.isArray(state.masters[k])) state.masters[k] = [...DEFAULT_MASTERS[k]];
+          }
+        }
+        saveLocal();   // クラウド内容をローカルにもキャッシュ
+      }
+    }else{
+      // クラウドにまだデータが無い → この端末のローカルデータを初回アップロードして保全
+      if(state.items.length>0) await cloudSaveNow();
+    }
+    cloudLoaded = true;
+    setSyncPill('on');
+    renderKpis(); renderList(); renderSettings();
+  }catch(e){
+    console.error('cloud load failed', e);
+    setSyncPill('err');
+    toast('クラウド読み込みに失敗しました');
+  }
+}
+
+/* クラウドへ即保存 */
+async function cloudSaveNow(){
+  if(!currentUser || !cloudMode) return;
+  try{
+    setSyncPill('saving');
+    await fbDb.doc(`users/${currentUser.uid}/hikaku/data`).set({
+      items: state.items,
+      masters: state.masters,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    setSyncPill('on');
+  }catch(e){
+    console.error('cloud save failed', e);
+    setSyncPill('err');
+  }
+}
+
+/* クラウドへ保存（連続操作をまとめて 800ms 後に1回だけ送信） */
+function cloudSave(){
+  if(!currentUser || !cloudMode) return;
+  clearTimeout(cloudSaveTimer);
+  setSyncPill('saving');
+  cloudSaveTimer = setTimeout(cloudSaveNow, 800);
+}
+
 /* ---------- storage ---------- */
 function loadState(){
   try{
@@ -31,8 +181,14 @@ function loadState(){
     }
   }catch(e){console.error('load failed', e)}
 }
-function saveState(){
+/* ローカル（この端末）にだけ保存 */
+function saveLocal(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify({items:state.items, masters:state.masters}));
+}
+/* 保存：ローカル＋（ログイン時は）クラウドにも保存 */
+function saveState(){
+  saveLocal();
+  cloudSave();
 }
 
 /* ---------- utils ---------- */
@@ -210,7 +366,9 @@ function renderList(){
     `;
   }).join('');
 
-  document.getElementById('last-updated-list').textContent = `データはこの端末のブラウザに保存されています`;
+  document.getElementById('last-updated-list').textContent = (cloudMode && currentUser)
+    ? `☁️ クラウド保存中 — パソコン・スマホで同じデータが見られます`
+    : `この端末のブラウザにのみ保存中（右上のバッジからログインで全端末共有）`;
 }
 
 /* ---------- ranking view ---------- */
@@ -631,6 +789,7 @@ function handleUrlParams(){
 
 /* ---------- init ---------- */
 function init(){
+  // まずローカルデータを読み込んで即表示（オフラインでも使える）
   loadState();
   document.getElementById('header-date').textContent = todayStr();
   renderKpis();
@@ -639,5 +798,39 @@ function init(){
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   }
+
+  // Firebase 初期化＋ログイン状態の監視
+  const ok = (typeof firebase !== 'undefined') && initFirebase();
+  if(!ok){
+    // Firebaseが使えない環境 → ローカルのみで動作
+    cloudMode = false;
+    setSyncPill('local');
+    return;
+  }
+  setSyncPill('off');
+
+  fbAuth.onAuthStateChanged(user=>{
+    currentUser = user || null;
+    if(user){
+      // ログイン済み → クラウド共有モード
+      cloudMode = true;
+      document.getElementById('authOverlay').style.display = 'none';
+      const pill = document.getElementById('syncPill');
+      if(pill) pill.title = 'タップでログアウト（' + (user.email||'') + '）';
+      cloudLoad();
+    }else{
+      // 未ログイン
+      cloudMode = false;
+      if(localStorage.getItem('hikakuSkipLogin')==='1'){
+        // 「この端末だけで使う」を選んでいる → ログイン画面は出さない
+        setSyncPill('local');
+        document.getElementById('authOverlay').style.display = 'none';
+      }else{
+        // ログイン画面を表示
+        setSyncPill('off');
+        document.getElementById('authOverlay').style.display = 'flex';
+      }
+    }
+  });
 }
 window.addEventListener('DOMContentLoaded', init);
