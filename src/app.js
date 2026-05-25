@@ -437,6 +437,23 @@ function renderTrial(){
 function addTrialCandidate(){state.trial.candidates.push({}); renderTrial()}
 function removeTrialCandidate(i){state.trial.candidates.splice(i,1); renderTrial()}
 function updateTrial(i,k,v){state.trial.candidates[i][k] = v}
+function resetTrial(){
+  // 入力済みの内容があるときだけ確認する
+  const hasInput = ['trial-product','trial-qty','trial-old-vendor','trial-old-price','trial-old-ship','trial-old-freq']
+    .some(id=>{const el=document.getElementById(id); return el && el.value.trim()!=='';})
+    || state.trial.candidates.some(c=>c.vendor||c.price!=null||c.ship!=null||c.freq!=null);
+  if(hasInput && !confirm('試算の入力内容をすべてリセットしますか？')) return;
+  // 旧側の入力欄をクリア
+  ['trial-product','trial-qty','trial-old-vendor','trial-old-price','trial-old-ship','trial-old-freq']
+    .forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  // 新候補を初期状態(空2枠)に戻す
+  state.trial.candidates = [{}, {}];
+  renderTrial();
+  // 結果表示と候補カウントをクリア
+  document.getElementById('trial-result').innerHTML = '';
+  document.getElementById('trial-count-pill').textContent = '0件';
+  toast('試算をリセットしました');
+}
 
 function runTrial(){
   const product = document.getElementById('trial-product').value.trim() || '商品';
