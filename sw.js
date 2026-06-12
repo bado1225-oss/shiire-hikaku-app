@@ -1,9 +1,9 @@
-const CACHE = 'shiire-hikaku-v5';
+const CACHE = 'shiire-hikaku-v6';
 const ASSETS = [
   './',
   './index.html',
-  './src/style.css?v=4',
-  './src/app.js?v=5',
+  './src/style.css?v=6',
+  './src/app.js?v=6',
   './manifest.webmanifest?v=3',
   './icons/icon-192.png?v=3',
   './icons/icon-512.png?v=3'

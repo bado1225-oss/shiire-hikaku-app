@@ -340,6 +340,28 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy-2)}
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+.hint-inline{color:var(--muted);font-size:10px;font-weight:400;margin-left:4px}
+
+/* Preview breakdown */
+.preview-box .pv-side{margin-top:4px}
+.preview-box .pv-side-head{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-weight:800;color:var(--navy);font-size:13px;
+}
+.preview-box .pv-side.alt .pv-side-head{color:var(--green)}
+.preview-box .pv-side-total{font-size:14px;font-variant-numeric:tabular-nums}
+.preview-box .pv-breakdown{
+  font-size:11px;color:var(--muted);line-height:1.7;margin:2px 0 0 0;padding-left:8px;
+}
+.preview-box .pv-breakdown .pv-bd-row{display:flex;justify-content:space-between;gap:6px}
+.preview-box .pv-breakdown .pv-bd-amt{font-variant-numeric:tabular-nums;color:var(--text);font-weight:700}
+.preview-box .pv-divider{height:1px;background:#e6c982;margin:8px 0}
+.preview-box .pv-total-row{
+  display:flex;justify-content:space-between;align-items:center;font-size:12px;
+}
+.preview-box .pv-total-row .pv-saving{font-size:15px;font-weight:800;color:var(--green)}
+.preview-box .pv-total-row .pv-saving.neg{color:var(--red)}
+
 /* ===== ログイン画面 ===== */
 .auth-overlay{
   position:fixed;inset:0;z-index:1000;

@@ -582,16 +582,29 @@ function getVal(id){return document.getElementById(id).value}
 function updatePreview(){
   const it = collectForm();
   const r = calcItem(it);
+  const qty = num(it.qty);
+  const oP = num(it.oldPrice), oS = num(it.oldShip)||0, oF = num(it.oldFreq);
+  const nP = num(it.newPrice), nS = num(it.newShip)||0, nF = num(it.newFreq);
   const sCls = r.monthSaving==null?'zero':(r.monthSaving>=0?'':'neg');
   const rateTxt = r.savingRate==null?'—':(r.savingRate*100).toFixed(1)+'%';
+  // 1サイド分のHTMLを生成（商品代 / 送料 の内訳付き）
+  const sideHTML = (label, total, goods, ship, qty, price, shipPerOrder, freq, isAlt) => `
+    <div class="pv-side ${isAlt?'alt':''}">
+      <div class="pv-side-head"><span>${label}</span><span class="pv-side-total">${yen(total)}/月</span></div>
+      <div class="pv-breakdown">
+        <div class="pv-bd-row"><span>　商品代 ${qty!=null&&price!=null?`(${yen(price)} × 月${qty}個)`:''}</span><span class="pv-bd-amt">${yen(goods)}</span></div>
+        <div class="pv-bd-row"><span>　送料　 ${shipPerOrder!=null&&freq!=null?`(${yen(shipPerOrder)} × 月${freq}回)`:''}</span><span class="pv-bd-amt">${yen(ship)}</span></div>
+      </div>
+    </div>`;
   document.getElementById('modal-preview').innerHTML = `
-    <div class="pv-row"><span>旧 月間合計</span><span class="pv-amt">${yen(r.oldMonTotal)}</span></div>
-    <div class="pv-row"><span>新 月間合計</span><span class="pv-amt">${yen(r.newMonTotal)}</span></div>
-    <div class="pv-row" style="margin-top:6px;border-top:1px dashed #e6c982;padding-top:6px">
+    ${sideHTML('旧', r.oldMonTotal, r.oldMonGoods, r.oldMonShip, qty, oP, oS, oF, false)}
+    ${sideHTML('新', r.newMonTotal, r.newMonGoods, r.newMonShip, qty, nP, nS, nF, true)}
+    <div class="pv-divider"></div>
+    <div class="pv-total-row">
       <span><b>月間削減額</b> (${rateTxt})</span>
       <span class="pv-saving ${sCls}">${r.monthSaving==null?'—':(r.monthSaving>=0?'+':'')+yen(Math.abs(r.monthSaving)).replace('¥',r.monthSaving>=0?'¥':'-¥')}</span>
     </div>
-    <div class="pv-row"><span>年間換算</span><span class="pv-amt">${yen(r.yearSaving)}</span></div>
+    <div class="pv-total-row" style="margin-top:4px"><span>年間換算</span><span class="pv-bd-amt">${yen(r.yearSaving)}</span></div>
   `;
 }
 function collectForm(){
