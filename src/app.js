@@ -479,9 +479,32 @@ function runTrial(){
   }
   cands.sort((a,b)=>b.save - a.save);
   const best = cands[0];
+  const bestRate = oldMon>0 ? (best.save/oldMon*100) : 0;
+  // 削減効果を大きく見せるヒーローカード（削減あり=緑 / 削減なし=グレー）
+  const heroHTML = best.save>0 ? `
+    <div class="trial-hero">
+      <div class="trial-hero-head">💰 ${escapeHtml(best.vendor)} に切り替えると…</div>
+      <div class="trial-hero-year">年間 <span class="num">+${yen(best.save*12)}</span> おトク</div>
+      <div class="trial-hero-month">月間 +${yen(best.save)}（${bestRate.toFixed(1)}%削減）</div>
+      <div class="trial-hero-bars">
+        <div class="thb-row">
+          <span class="thb-label">旧</span>
+          <div class="thb-track"><div class="thb-fill old" style="width:100%">${yen(oldMon)}/月</div></div>
+        </div>
+        <div class="thb-row">
+          <span class="thb-label">新</span>
+          <div class="thb-track"><div class="thb-fill new" style="width:${Math.max(18, best.mon/oldMon*100)}%">${yen(best.mon)}/月</div></div>
+        </div>
+      </div>
+    </div>` : `
+    <div class="trial-hero none">
+      <div class="trial-hero-head">😐 削減効果は出ませんでした</div>
+      <div class="trial-hero-month">今の ${escapeHtml(oldVendor)}（${yen(oldMon)}/月）が最安です。他の候補も試してみてください。</div>
+    </div>`;
   document.getElementById('trial-result').innerHTML = `
+    ${heroHTML}
     <div class="settings-card">
-      <div class="settings-label">${escapeHtml(product)} の試算結果</div>
+      <div class="settings-label">${escapeHtml(product)} の候補別くらべ</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
         旧: ${escapeHtml(oldVendor)} / ${yen(oldPrice)}×${qty}+送料${yen(oldShip)}×${oldFreq}回 = <b style="color:var(--navy)">${yen(oldMon)}/月</b>
       </div>
@@ -494,8 +517,7 @@ function runTrial(){
           <div class="cand-save ${c.save<0?'neg':''}">${c.save>=0?'+':''}${yen(Math.abs(c.save)).replace('¥',c.save>=0?'¥':'-¥')} (${rate})</div>
         </div>`;
       }).join('')}
-      ${best.save>0?`<p class="hint" style="margin-top:10px">💡 BEST候補に切り替えると、年間 <b style="color:var(--green)">${yen(best.save*12)}</b> の削減になります。</p>`:''}
-      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
         <button class="primary-btn" onclick='registerTrialAsItem(${JSON.stringify({product,qty,oldVendor,oldPrice,oldShip,oldFreq,best}).replace(/"/g,"&quot;")})'>BEST候補をこの商品として登録</button>
       </div>
     </div>

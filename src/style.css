@@ -255,6 +255,37 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy-2)}
   padding:1px 7px;border-radius:6px;font-size:10px;font-weight:800;margin-left:4px;
 }
 
+/* Trial hero — 削減効果を大きく見せるカード */
+.trial-hero{
+  background:linear-gradient(135deg,var(--green) 0%,var(--green-2) 100%);
+  color:#fff;border-radius:18px;padding:18px 16px;
+  box-shadow:0 12px 28px rgba(63,123,93,.25);
+  margin-bottom:12px;
+}
+.trial-hero.none{
+  background:linear-gradient(135deg,#8f867c,#a89f93);
+  box-shadow:0 12px 28px rgba(60,55,48,.18);
+}
+.trial-hero-head{font-size:13px;font-weight:800;opacity:.95}
+.trial-hero-year{
+  font-size:16px;font-weight:800;margin-top:10px;line-height:1.2;
+}
+.trial-hero-year .num{
+  font-size:34px;letter-spacing:.01em;font-variant-numeric:tabular-nums;
+  text-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+.trial-hero-month{font-size:13px;font-weight:700;opacity:.92;margin-top:6px}
+.trial-hero-bars{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+.thb-row{display:flex;align-items:center;gap:8px}
+.thb-label{font-size:11px;font-weight:800;width:18px;flex-shrink:0;opacity:.9}
+.thb-track{flex:1;background:rgba(255,255,255,.18);border-radius:8px;overflow:hidden}
+.thb-fill{
+  padding:5px 10px;font-size:11px;font-weight:800;white-space:nowrap;
+  border-radius:8px;font-variant-numeric:tabular-nums;
+}
+.thb-fill.old{background:rgba(32,58,90,.55)}
+.thb-fill.new{background:#fff;color:var(--green)}
+
 /* Settings */
 .settings-card{
   background:#fff;border:1px solid var(--line);border-radius:14px;
