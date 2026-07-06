@@ -255,6 +255,23 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy-2)}
   padding:1px 7px;border-radius:6px;font-size:10px;font-weight:800;margin-left:4px;
 }
 
+/* Trial candidate input — まとめ買い対応の候補入力カード */
+.trial-cand-input{
+  background:rgba(63,123,93,.05);border:1px solid rgba(63,123,93,.15);
+  border-radius:10px;padding:10px;margin-bottom:8px;
+}
+.trial-cand-input .tci-row{display:flex;gap:6px;margin-bottom:6px}
+.trial-cand-input .tci-row:last-of-type{margin-bottom:0}
+.tci-field{flex:1;min-width:0}
+.tci-field label{
+  display:block;font-size:10px;color:var(--muted);font-weight:700;margin-bottom:3px;
+}
+.tci-live{font-size:11px;color:var(--green);font-weight:700;margin-top:6px;min-height:14px}
+.pack-badge{
+  display:inline-block;background:rgba(216,144,53,.15);color:var(--orange);
+  padding:1px 7px;border-radius:6px;font-size:10px;font-weight:800;margin-left:4px;
+}
+
 /* Trial hero — 削減効果を大きく見せるカード */
 .trial-hero{
   background:linear-gradient(135deg,var(--green) 0%,var(--green-2) 100%);

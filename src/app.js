@@ -425,23 +425,59 @@ function renderRanking(){
 function renderTrial(){
   const wrap = document.getElementById('trial-candidates');
   wrap.innerHTML = state.trial.candidates.map((c,i)=>`
-    <div class="toolbar-row">
-      <input type="text" class="search-input" placeholder="新候補${i+1}: 仕入先" value="${escapeHtml(c.vendor||'')}" onchange="updateTrial(${i},'vendor',this.value)">
-      <input type="number" step="0.01" class="search-input" placeholder="単価" value="${c.price??''}" onchange="updateTrial(${i},'price',this.value)" style="max-width:110px">
-      <input type="number" step="0.01" class="search-input" placeholder="送料" value="${c.ship??''}" onchange="updateTrial(${i},'ship',this.value)" style="max-width:110px">
-      <input type="number" step="0.01" class="search-input" placeholder="月発注回数" value="${c.freq??''}" onchange="updateTrial(${i},'freq',this.value)" style="max-width:130px">
-      ${state.trial.candidates.length>1?`<button class="danger-btn" onclick="removeTrialCandidate(${i})" style="flex:0">削除</button>`:''}
+    <div class="trial-cand-input">
+      <div class="tci-row">
+        <input type="text" class="search-input" placeholder="新候補${i+1}: 仕入先（例: アマゾン）" value="${escapeHtml(c.vendor||'')}" oninput="updateTrial(${i},'vendor',this.value)">
+        ${state.trial.candidates.length>1?`<button class="danger-btn" onclick="removeTrialCandidate(${i})" style="flex:0 0 auto">削除</button>`:''}
+      </div>
+      <div class="tci-row">
+        <div class="tci-field">
+          <label>1回に買う個数</label>
+          <input type="number" step="1" min="1" class="search-input" placeholder="1" value="${c.pack??''}" oninput="updateTrial(${i},'pack',this.value)">
+        </div>
+        <div class="tci-field">
+          <label>その合計価格(円)</label>
+          <input type="number" step="0.01" class="search-input" placeholder="例: 6999" value="${c.price??''}" oninput="updateTrial(${i},'price',this.value)">
+        </div>
+        <div class="tci-field">
+          <label>送料(円/回)</label>
+          <input type="number" step="0.01" class="search-input" placeholder="0" value="${c.ship??''}" oninput="updateTrial(${i},'ship',this.value)">
+        </div>
+      </div>
+      <div class="tci-live" id="tci-live-${i}"></div>
     </div>
   `).join('');
+  // 月間使用量が変わったら各候補の自動計算表示も更新する
+  const qtyEl = document.getElementById('trial-qty');
+  if(qtyEl) qtyEl.oninput = ()=>state.trial.candidates.forEach((_,i)=>updateTrialLive(i));
+  state.trial.candidates.forEach((_,i)=>updateTrialLive(i));
 }
 function addTrialCandidate(){state.trial.candidates.push({}); renderTrial()}
 function removeTrialCandidate(i){state.trial.candidates.splice(i,1); renderTrial()}
-function updateTrial(i,k,v){state.trial.candidates[i][k] = v}
+function updateTrial(i,k,v){state.trial.candidates[i][k] = v; updateTrialLive(i)}
+/* 入力中に実質単価と発注回数をその場で見せる */
+function updateTrialLive(i){
+  const el = document.getElementById('tci-live-'+i); if(!el) return;
+  const c = state.trial.candidates[i];
+  const P = num(c.price);
+  if(P==null){ el.textContent=''; return; }
+  const N = Math.max(1, num(c.pack)||1);
+  const S = num(c.ship)||0;
+  const unit = P/N;
+  let t = `→ 実質単価 ${yen(Math.round(unit*100)/100)}/個`;
+  const qty = num(document.getElementById('trial-qty')?.value);
+  if(qty!=null && qty>0){
+    const freq = qty/N;
+    t += `・発注は月${Math.round(freq*100)/100}回`;
+    if(S>0) t += `・送料${yen(S)}/回`;
+  }
+  el.textContent = t;
+}
 function resetTrial(){
   // 入力済みの内容があるときだけ確認する
   const hasInput = ['trial-product','trial-qty','trial-old-vendor','trial-old-price','trial-old-ship','trial-old-freq']
     .some(id=>{const el=document.getElementById(id); return el && el.value.trim()!=='';})
-    || state.trial.candidates.some(c=>c.vendor||c.price!=null||c.ship!=null||c.freq!=null);
+    || state.trial.candidates.some(c=>c.vendor||c.price!=null||c.ship!=null||c.freq!=null||c.pack!=null);
   if(hasInput && !confirm('試算の入力内容をすべてリセットしますか？')) return;
   // 旧側の入力欄をクリア
   ['trial-product','trial-qty','trial-old-vendor','trial-old-price','trial-old-ship','trial-old-freq']
@@ -468,13 +504,17 @@ function runTrial(){
   }
   const oldMon = qty*oldPrice + oldShip*oldFreq;
   const cands = state.trial.candidates.map((c,i)=>{
-    const p = num(c.price), s = num(c.ship)||0, f = num(c.freq);
-    if(p==null || f==null) return null;
-    const mon = qty*p + s*f;
-    return {idx:i, vendor:c.vendor||`候補${i+1}`, price:p, ship:s, freq:f, mon, save:oldMon-mon};
+    const p = num(c.price), s = num(c.ship)||0;
+    if(p==null) return null;
+    // まとめ買い対応: N個入り価格Pなら 実質単価=P/N、月の発注回数=月間使用量/N（自動計算）
+    const pack = Math.max(1, num(c.pack)||1);
+    const unit = p/pack;
+    const freq = qty/pack;
+    const mon = unit*qty + s*freq;
+    return {idx:i, vendor:c.vendor||`候補${i+1}`, pack, price:p, ship:s, unit, freq, mon, save:oldMon-mon};
   }).filter(Boolean);
   if(cands.length===0){
-    toast('新候補の単価と月発注回数を最低1つ入力してください');
+    toast('新候補の合計価格を最低1つ入力してください');
     return;
   }
   cands.sort((a,b)=>b.save - a.save);
@@ -511,8 +551,12 @@ function runTrial(){
       ${cands.map((c,i)=>{
         const isBest = i===0 && c.save>0;
         const rate = oldMon>0 ? (c.save/oldMon*100).toFixed(1)+'%' : '—';
+        const freqR = Math.round(c.freq*100)/100;
+        const buyDesc = c.pack>1
+          ? `${c.pack}個で${yen(c.price)}（実質${yen(Math.round(c.unit*100)/100)}/個）+送料${yen(c.ship)} / 月${freqR}回発注`
+          : `${yen(c.price)}/個 +送料${yen(c.ship)} / 月${freqR}回発注`;
         return `<div class="trial-cand-card ${isBest?'best':''}">
-          <div class="cand-vendor">${escapeHtml(c.vendor)}${isBest?'<span class="best-badge">BEST</span>':''}<div style="font-size:11px;color:var(--muted);font-weight:400">${yen(c.price)}×${qty}+送料${yen(c.ship)}×${c.freq}回</div></div>
+          <div class="cand-vendor">${escapeHtml(c.vendor)}${isBest?'<span class="best-badge">BEST</span>':''}${c.pack>1?'<span class="pack-badge">まとめ買い</span>':''}<div style="font-size:11px;color:var(--muted);font-weight:400">${buyDesc}</div></div>
           <div class="cand-mon">${yen(c.mon)}/月</div>
           <div class="cand-save ${c.save<0?'neg':''}">${c.save>=0?'+':''}${yen(Math.abs(c.save)).replace('¥',c.save>=0?'¥':'-¥')} (${rate})</div>
         </div>`;
@@ -527,13 +571,16 @@ function runTrial(){
 function registerTrialAsItem(obj){
   if(typeof obj === 'string'){ try{obj = JSON.parse(obj.replace(/&quot;/g,'"'))}catch{return} }
   const b = obj.best;
+  // まとめ買いの場合は実質単価と自動計算した発注回数で登録する
+  const unitPrice = Math.round((b.unit ?? b.price)*100)/100;
+  const freq = Math.round((b.freq ?? 1)*100)/100;
   const it = {
     id: uid(), createdAt: Date.now(),
     name: obj.product, store:'', unit:'',
     qty: obj.qty,
     oldVendor: obj.oldVendor, oldPrice: obj.oldPrice, oldShip: obj.oldShip, oldFreq: obj.oldFreq,
-    newVendor: b.vendor, newPrice: b.price, newShip: b.ship, newFreq: b.freq,
-    memo: '試算から登録'
+    newVendor: b.vendor, newPrice: unitPrice, newShip: b.ship, newFreq: freq,
+    memo: b.pack>1 ? `試算から登録（${b.pack}個まとめ買いで${yen(b.price)}）` : '試算から登録'
   };
   state.items.push(it); saveState(); renderKpis(); toast('比較リストに登録しました');
   showTab('list');
