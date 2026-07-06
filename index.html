@@ -127,7 +127,7 @@
       <p class="hint">「この商品をどこから買うのが一番安いか」を試算するモードです。まとめ買いにも対応：3個セット¥6,999なら「個数 3・合計価格 6999」と入力すれば、実質単価と発注回数は自動で計算されます。</p>
       <div class="toolbar-row">
         <input type="text" id="trial-product" class="search-input" placeholder="試算する商品名（例: ハンドスキッシュEX）">
-        <input type="number" step="0.01" id="trial-qty" class="search-input" placeholder="月間使用量" style="max-width:120px">
+        <input type="number" step="1" min="0" inputmode="decimal" id="trial-qty" class="search-input" placeholder="月間使用量" style="max-width:120px">
       </div>
       <div class="toolbar-row">
         <input type="text" id="trial-old-vendor" class="search-input" placeholder="旧仕入先">
@@ -230,7 +230,7 @@
           </div>
           <div>
             <label>月間使用量 <span class="hint-inline">(月にいくつ消費する？)</span></label>
-            <input type="number" step="0.01" id="f-qty" placeholder="0">
+            <input type="number" step="1" min="0" inputmode="decimal" id="f-qty" placeholder="0">
           </div>
         </div>
 
