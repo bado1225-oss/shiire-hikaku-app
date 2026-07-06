@@ -464,12 +464,13 @@ function updateTrialLive(i){
   const N = Math.max(1, num(c.pack)||1);
   const S = num(c.ship)||0;
   const unit = P/N;
+  const unitShip = (P+S)/N; // 送料を1個あたりに割り振った実質単価
   let t = `→ 実質単価 ${yen(Math.round(unit*100)/100)}/個`;
+  if(S>0) t += `（送料込み ${yen(Math.round(unitShip*100)/100)}/個）`;
   const qty = num(document.getElementById('trial-qty')?.value);
   if(qty!=null && qty>0){
     const freq = qty/N;
     t += `・発注は月${Math.round(freq*100)/100}回`;
-    if(S>0) t += `・送料${yen(S)}/回`;
   }
   el.textContent = t;
 }
@@ -552,9 +553,11 @@ function runTrial(){
         const isBest = i===0 && c.save>0;
         const rate = oldMon>0 ? (c.save/oldMon*100).toFixed(1)+'%' : '—';
         const freqR = Math.round(c.freq*100)/100;
+        const unitShip = Math.round(((c.price+c.ship)/c.pack)*100)/100; // 送料を1個あたりに割り振った実質単価
+        const shipNote = c.ship>0 ? `（送料込み${yen(unitShip)}/個）` : '';
         const buyDesc = c.pack>1
-          ? `${c.pack}個で${yen(c.price)}（実質${yen(Math.round(c.unit*100)/100)}/個）+送料${yen(c.ship)} / 月${freqR}回発注`
-          : `${yen(c.price)}/個 +送料${yen(c.ship)} / 月${freqR}回発注`;
+          ? `${c.pack}個で${yen(c.price)}（実質${yen(Math.round(c.unit*100)/100)}/個）+送料${yen(c.ship)}${shipNote} / 月${freqR}回発注`
+          : `${yen(c.price)}/個 +送料${yen(c.ship)}${shipNote} / 月${freqR}回発注`;
         return `<div class="trial-cand-card ${isBest?'best':''}">
           <div class="cand-vendor">${escapeHtml(c.vendor)}${isBest?'<span class="best-badge">BEST</span>':''}${c.pack>1?'<span class="pack-badge">まとめ買い</span>':''}<div style="font-size:11px;color:var(--muted);font-weight:400">${buyDesc}</div></div>
           <div class="cand-mon">${yen(c.mon)}/月</div>
